@@ -28,8 +28,8 @@ inputImage.addEventListener("change", () => {
         image.src = reader.result;
 
         image.onload = () => {
-            canvas.width = 128;
-            canvas.height = 160;
+            canvas.width = 80;
+            canvas.height = 128;
 
             ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
         }
@@ -109,6 +109,36 @@ async function sendImage() {
     } catch (e) {
         console.log("error!!");
         console.log(e);
+    }
+}
+
+// Canvas upload
+async function sendImageFromCanvas() {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+        filters: [{ name: "SmartPhoneForDolls"}],
+        optionalServices: [SERVICE_UUID]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        canvas.toBlob(async (blob) => {
+            const arrayBuffer = await blob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            const chunkSize = 20;
+            for (let i=0; i<uint8Array.length; i+=chunkSize) {
+                const chunk = uint8Array.slice(i, i+ chunkSize);
+                await characteristic.writeValue(chunk);
+                console.log(`Sent chunk ${i / chunkSize + 1} of ${Math.ceil(uint8Array.length / chunkSize)}`);
+            }
+
+            console.log("successfully!!");
+            server.disconnect();
+        }, 'image/jpeg', 0.9);
+    } catch (error) {
+        console.log('Error: ', error);
     }
 }
 
